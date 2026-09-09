@@ -57,3 +57,97 @@ Este README deve ser atualizado sempre que houver uma mudança relevante no proj
 * Componentes adicionados ou removidos
 
 O README será utilizado como documentação viva da Emilia.
+
+
+                  ┌──────────────┐
+                  │    Usuário   │
+                  └──────┬───────┘
+                         │
+                         ▼
+                  ┌──────────────┐
+                  │     API      │
+                  └──────┬───────┘
+                         │
+                         ▼
+                ┌─────────────────┐
+                │ Receber pergunta│
+                └────────┬────────┘
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+       ┌─────────────┐       ┌─────────────┐
+       │   Memória   │       │     RAG     │
+       │   / Banco   │       │  se preciso │
+       └──────┬──────┘       └──────┬──────┘
+              │                     │
+              └──────────┬──────────┘
+                         ▼
+                  ┌──────────────┐
+                  │     LLM      │
+                  └──────┬───────┘
+                         │
+                         ▼
+                  ┌──────────────┐
+                  │    Resposta  │
+                  └──────┬───────┘
+                         │
+                         ▼
+                       Usuário
+
+
+
+
+## Arquitetura inicial
+
+### Fluxo
+
+USUÁRIO
+   ↓
+FastAPI
+   ↓
+Orquestrador
+   ↓
+Classificador
+   ↓
+Decisão de rota
+   ↓
+┌───────────┬───────────┬──────────────────┐
+│           │           │                  │
+Memória     RAG      Pesquisa externa      │
+│           │           │                  │
+└───────────┴───────────┴──────────────────┘
+                    ↓
+                  LLM
+                    ↓
+                Resposta
+                    ↓
+                 Usuário
+
+
+### Componentes
+ 
+API: Vai ser responsável por receber as solicitações externas e encaminhá-las para o sistema.
+
+Orquestrador: Vai decidir, a partir do resultado do classificador, quais componentes precisam ser acionados e em que ordem.
+
+Classificador: Vai analisar a solicitação do usuário e identificar o tipo de informação ou recurso necessário.
+
+LLM: Vai ser responsável por processar a pergunta juntamente com os contextos fornecidos e gerar a resposta em linguagem natural.
+
+
+Memória: Vai ficar responsavel por usar as memorias antigas para responder as perguntas ou salvar
+
+RAG: Vai ser responsável por recuperar informações relevantes de uma base de conhecimento previamente disponibilizada para a Emilia.
+
+
+Pesquisa externa: Vai ser responsável por buscar informações em fontes externas quando a informação necessária não estiver disponível internamente ou precisar de dados atualizados.
+
+Banco de dados: Ele vai ajudar na persistencia de dados
+API: Ele serve pra
+
+Regra 1:
+
+Se a solicitação exigir conhecimento específico armazenado
+na base de conhecimento da Emilia, utilizar RAG antes do LLM.
+
+Caso contrário, utilizar o fluxo padrão do LLM.
