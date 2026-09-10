@@ -1,0 +1,835 @@
+Mapa arquitetural da Emilia
+1. Objetivo da Emilia
+
+A Emilia será uma IA versátil, capaz de:
+
+conversar por texto;
+futuramente trabalhar com voz;
+pesquisar informações;
+utilizar informações armazenadas;
+lembrar informações relevantes de conversas anteriores;
+consultar uma base de conhecimento própria;
+buscar informações externas quando necessário;
+auxiliar em decisões;
+ensinar e ajudar no aprendizado;
+adaptar-se progressivamente ao usuário.
+
+A ideia é construir isso por etapas, começando pela arquitetura e pelos fundamentos, em vez de tentar desenvolver tudo de uma vez.
+
+2. Stack planejada
+
+A stack que definimos para o projeto é aproximadamente:
+
+Python
+│
+├── FastAPI
+├── Pydantic
+├── LLMs
+├── RAG
+├── Embeddings
+├── PostgreSQL
+├── pgvector
+│
+├── HTML
+├── CSS
+├── JavaScript
+├── TypeScript
+│
+├── Docker
+├── Git
+├── GitHub
+├── pytest
+└── CI/CD
+
+Algumas dessas tecnologias entram mais para frente.
+
+Não vamos instalar tudo agora.
+
+A ideia é aprender cada camada quando ela fizer sentido arquiteturalmente.
+
+3. Arquitetura geral
+
+A arquitetura conceitual que construímos é:
+
+                         USUÁRIO
+                            │
+                            ▼
+                          API
+                            │
+                            ▼
+                     ORQUESTRADOR
+                            │
+                            ▼
+                      CLASSIFICADOR
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+          MEMÓRIA          RAG       PESQUISA EXTERNA
+             │              │              │
+             └──────────────┼──────────────┘
+                            │
+                            ▼
+                           LLM
+                            │
+                            ▼
+                         RESPOSTA
+                            │
+                            ▼
+                           API
+                            │
+                            ▼
+                         USUÁRIO
+
+Importante: esse não é um fluxo obrigatório para todas as perguntas.
+
+O Orquestrador decide quais componentes realmente precisam ser utilizados.
+
+Por exemplo:
+
+Pergunta simples
+    ↓
+API
+    ↓
+Orquestrador
+    ↓
+Classificador
+    ↓
+LLM
+    ↓
+Resposta
+
+Enquanto:
+
+Pergunta sobre conhecimento interno
+    ↓
+API
+    ↓
+Orquestrador
+    ↓
+Classificador
+    ↓
+RAG
+    ↓
+LLM
+    ↓
+Resposta
+
+Ou:
+
+Pergunta sobre algo que a Emilia lembra
+    ↓
+API
+    ↓
+Orquestrador
+    ↓
+Classificador
+    ↓
+Memória
+    ↓
+LLM
+    ↓
+Resposta
+4. Responsabilidade de cada componente
+
+Essa é uma das partes mais importantes do mapa.
+
+API
+
+Responsabilidade:
+
+Ser a porta de entrada e saída da aplicação.
+
+Ela:
+
+recebe requisição
+       ↓
+entrega para o Orquestrador
+       ↓
+recebe resultado
+       ↓
+devolve resposta
+
+Ela não deve decidir:
+
+usar RAG;
+usar memória;
+pesquisar externamente;
+escolher o LLM;
+como gerar a resposta.
+
+Essas decisões pertencem ao Orquestrador.
+
+5. Orquestrador
+
+Responsabilidade:
+
+Coordenar o processamento da solicitação.
+
+Ele será o "coordenador" da Emilia.
+
+Por exemplo:
+
+Orquestrador
+     │
+     ├── chama Classificador
+     │
+     ├── se necessário → Memória
+     │
+     ├── se necessário → RAG
+     │
+     ├── se necessário → Pesquisa externa
+     │
+     └── envia contexto para LLM
+
+Uma decisão importante que você tomou foi:
+
+O Orquestrador será responsável por decidir o que fazer com o resultado do Classificador.
+
+Isso mantém as responsabilidades separadas.
+
+6. Classificador
+
+Responsabilidade:
+
+Analisar a solicitação e identificar qual tipo de recurso é necessário.
+
+Por exemplo:
+
+"Qual foi aquela decisão que tomei sobre a Emilia?"
+                ↓
+          CLASSIFICADOR
+                ↓
+             MEMÓRIA
+
+Ou:
+
+"Consulte os documentos da empresa sobre férias."
+                ↓
+          CLASSIFICADOR
+                ↓
+               RAG
+
+Ou:
+
+"Qual é o preço atual do Bitcoin?"
+                ↓
+          CLASSIFICADOR
+                ↓
+       PESQUISA EXTERNA
+
+Uma decisão importante sua foi preferir um classificador separado, em vez de colocar toda a decisão dentro do LLM principal.
+
+Isso segue a ideia de:
+
+uma responsabilidade para cada componente.
+
+O Classificador classifica.
+
+O Orquestrador decide como executar.
+
+7. LLM
+
+Responsabilidade:
+
+Processar a pergunta junto com os contextos disponíveis e gerar a resposta em linguagem natural.
+
+Ele pode receber:
+
+Pergunta do usuário
+       +
+Memória relevante
+       +
+Contexto do RAG
+       +
+Resultado da pesquisa externa
+       ↓
+      LLM
+       ↓
+Resposta
+
+O LLM não precisa saber como o RAG pesquisou.
+
+Nem como a memória foi armazenada.
+
+Nem como a pesquisa externa foi feita.
+
+Ele recebe o contexto necessário.
+
+8. Memória
+
+Responsabilidade:
+
+Recuperar informações relevantes de conversas anteriores e armazenar novas informações que devam ser mantidas.
+
+Ela possui duas operações principais:
+
+MEMÓRIA
+├── recuperar
+└── salvar
+
+E é importante não confundir:
+
+Memória ≠ Banco de dados
+
+A memória é uma responsabilidade do sistema.
+
+O banco de dados é uma infraestrutura de persistência que pode armazenar os dados da memória.
+
+9. RAG
+
+Responsabilidade:
+
+Recuperar informações relevantes de uma base de conhecimento previamente disponibilizada para a Emilia.
+
+Por exemplo:
+
+Documentos
+Manuais
+PDFs
+Informações internas
+Conhecimento próprio
+       ↓
+Base de conhecimento
+       ↓
+RAG
+       ↓
+Contexto relevante
+       ↓
+LLM
+
+Você inicialmente descreveu como:
+
+"Vai ter alguns dados pré-estabelecidos para poder sempre ter uma base."
+
+A ideia está correta, mas tecnicamente preferimos pensar em base de conhecimento.
+
+E futuramente entra:
+
+Embeddings
+    ↓
+Vetores
+    ↓
+pgvector
+    ↓
+Busca semântica
+10. Pesquisa externa
+
+Responsabilidade:
+
+Buscar informações em fontes externas quando a informação necessária não estiver disponível internamente ou precisar de dados atualizados.
+
+Isso é diferente do RAG.
+
+RAG
+
+Busca na:
+
+base de conhecimento da Emilia
+Pesquisa externa
+
+Busca em:
+
+fontes externas
+APIs
+internet
+serviços externos
+etc.
+
+Essa distinção é importante.
+
+11. Banco de dados
+
+Responsabilidade:
+
+Garantir a persistência dos dados da aplicação.
+
+Inicialmente planejamos:
+
+PostgreSQL
+
+E futuramente:
+
+PostgreSQL
+     +
+pgvector
+
+Ele poderá armazenar coisas como:
+
+Usuários
+Conversas
+Memórias
+Dados da aplicação
+Informações relacionadas ao RAG
+Vetores
+Metadados
+
+Mas isso será definido conforme implementarmos cada componente.
+
+12. Embeddings
+
+Ainda não implementamos.
+
+A ideia é:
+
+Texto
+  ↓
+Modelo de embedding
+  ↓
+Vetor
+
+Esses vetores permitem comparar semanticamente informações.
+
+Eles serão especialmente importantes para o RAG.
+
+Por exemplo:
+
+Pergunta do usuário
+        ↓
+     embedding
+        ↓
+consulta vetorial
+        ↓
+informações semelhantes
+13. Estrutura atual do projeto
+
+Até agora você criou algo aproximadamente assim:
+
+emilia/
+│
+├── .venv/
+│
+├── app/
+│   │
+│   ├── memoria/
+│   │
+│   ├── rag/
+│   │
+│   ├── api.py
+│   │
+│   ├── llm.py
+│   │
+│   └── orquestracao.py
+│
+├── bd/
+│
+├── main.py
+│
+├── README.md
+│
+├── .gitignore
+│
+├── .gitattributes
+│
+└── LICENSE
+
+Agora vamos explicar o papel de cada um.
+
+14. main.py
+
+O main.py será o ponto de entrada da aplicação.
+
+Ele não deve virar o lugar onde colocamos toda a lógica.
+
+Conceitualmente:
+
+main.py
+   ↓
+inicializa aplicação
+   ↓
+carrega/configura componentes
+   ↓
+inicia sistema
+
+Mais para frente, ele poderá iniciar o servidor da API.
+
+A regra que queremos manter:
+
+main.py inicia/compõe a aplicação; não concentra as responsabilidades dela.
+
+15. app/api.py
+
+É onde estamos trabalhando agora.
+
+Responsabilidade:
+
+API HTTP
+
+Inicialmente:
+
+GET /home
+POST /chat
+
+O /chat recebe uma requisição.
+
+Você criou o modelo:
+
+class ApiRequests(BaseModel):
+    mensagem: str
+    usuario: str
+    contexto_conversa: list[str]
+
+E chegou à ideia:
+
+def chat_response(text: ApiRequests):
+
+O próximo objetivo é:
+
+API
+ ↓
+pega mensagem
+ ↓
+Orquestrador
+16. app/orquestracao.py
+
+Será responsável pelo Orquestrador.
+
+A ideia conceitual:
+
+orquestracao.py
+        ↓
+classe Orquestrador
+        ↓
+método orquestrar()
+
+Ele receberá inicialmente a mensagem:
+
+API
+ ↓
+mensagem
+ ↓
+Orquestrador
+
+E futuramente:
+
+Orquestrador
+      ↓
+Classificador
+      ↓
+decisão
+      ↓
+componente necessário
+17. app/llm.py
+
+Será responsável pela integração com o modelo de linguagem.
+
+Não deve conter:
+
+RAG
+Memória
+API
+Orquestração
+
+Ele deve cuidar daquilo relacionado ao LLM.
+
+Conceitualmente:
+
+LLM
+├── carregar modelo
+├── configurar modelo
+└── gerar resposta
+18. app/memoria/
+
+Será o componente de memória.
+
+Como ele provavelmente vai crescer, faz sentido ser uma pasta.
+
+Futuramente pode ter coisas como:
+
+memoria/
+├── ...
+├── ...
+└── ...
+
+Ainda não precisamos decidir todos os arquivos.
+
+19. app/rag/
+
+Mesmo princípio.
+
+Será responsável pelo sistema de Retrieval-Augmented Generation.
+
+Futuramente pode conter:
+
+rag/
+├── carregamento
+├── embeddings
+├── recuperação
+├── processamento
+└── ...
+
+Não precisamos criar tudo agora.
+
+20. Pesquisa externa
+
+Você inicialmente colocou:
+
+pesquisa_externa.txt
+
+Mas percebemos que isso provavelmente não representa bem o componente.
+
+Um .txt pode representar dados.
+
+Pesquisa externa representa comportamento.
+
+Então futuramente provavelmente teremos algo mais próximo de um módulo/pacote Python para essa responsabilidade.
+
+Ainda não precisamos decidir a estrutura definitiva.
+
+21. bd/
+
+Você criou:
+
+bd/
+
+Mas estabelecemos uma distinção importante:
+
+bd/
+
+não significa que o PostgreSQL ficará literalmente dentro do projeto.
+
+O PostgreSQL será um serviço de banco de dados.
+
+A aplicação poderá possuir código para:
+
+conexão
+configuração
+modelos
+repositórios
+persistência
+
+Mas o banco em si é outra coisa.
+
+22. README.md
+
+Esse arquivo será a documentação viva da Emilia.
+
+Deve registrar mudanças importantes, como:
+
+Objetivo
+Arquitetura
+Fluxo
+Componentes
+Responsabilidades
+Stack
+Decisões arquiteturais
+Estrutura de pastas
+Funcionalidades
+Tecnologias adicionadas
+Mudanças de escopo
+
+Sempre que fizermos uma mudança arquitetural importante, atualizamos o README.
+
+23. .gitignore
+
+Responsável por dizer ao Git quais arquivos/pastas não devem ser versionados.
+
+Por exemplo:
+
+.venv/
+arquivos temporários
+segredos
+variáveis de ambiente
+etc.
+24. .gitattributes
+
+Configura comportamentos específicos do Git para determinados arquivos.
+
+Não é uma peça da arquitetura da Emilia em si.
+
+É infraestrutura do controle de versão.
+
+25. LICENSE
+
+Define os termos legais de utilização/distribuição do projeto.
+
+Também não participa diretamente do fluxo da IA.
+
+26. Fluxo completo de uma requisição
+
+Agora juntando tudo:
+
+                    USUÁRIO
+                       │
+                       ▼
+                    FastAPI
+                       │
+                       ▼
+                  API /chat
+                       │
+                       ▼
+                 ORQUESTRADOR
+                       │
+                       ▼
+                  CLASSIFICADOR
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+          ▼            ▼            ▼
+       MEMÓRIA        RAG      PESQUISA EXTERNA
+          │            │            │
+          └────────────┼────────────┘
+                       │
+                       ▼
+                      LLM
+                       │
+                       ▼
+                    RESPOSTA
+                       │
+                       ▼
+                      API
+                       │
+                       ▼
+                    USUÁRIO
+
+E o banco:
+
+                  PostgreSQL
+                      ▲
+                      │
+              ┌───────┴───────┐
+              │               │
+           Memória           RAG
+27. Direção das dependências
+
+Essa parte é muito importante para sua noção arquitetural.
+
+Não pense:
+
+main → api → memória → LLM → RAG → banco
+
+como se fosse uma sequência obrigatória.
+
+A arquitetura é mais parecida com:
+
+                 main
+                  │
+                  ▼
+                 API
+                  │
+                  ▼
+            Orquestrador
+                  │
+                  ▼
+             Classificador
+          ┌───────┼────────┐
+          ▼       ▼        ▼
+       Memória   RAG    Pesquisa
+          │       │        │
+          └───────┼────────┘
+                  ▼
+                 LLM
+
+Isso significa que componentes não precisam conhecer todos os outros componentes.
+
+Esse é um dos princípios que vamos preservar durante o desenvolvimento.
+
+28. O que já está decidido
+Decidido
+Emilia será uma IA versátil.
+Python será a principal linguagem do backend.
+FastAPI será utilizado na API.
+Haverá um Orquestrador.
+Haverá um Classificador separado.
+O Orquestrador será responsável por executar a decisão do Classificador.
+Haverá Memória.
+Haverá RAG.
+Haverá Pesquisa externa.
+Haverá LLM.
+PostgreSQL será o banco principal planejado.
+pgvector será utilizado futuramente para vetores/RAG.
+A API não será responsável pela lógica de negócio.
+O main.py não concentrará a lógica.
+Componentes terão responsabilidades separadas.
+APIRouter poderá ser adotado quando a API crescer.
+Não vamos introduzir abstrações ou bibliotecas desnecessárias antes de entender a arquitetura.
+29. O que ainda NÃO está decidido
+
+E isso também é importante.
+
+Ainda não definimos completamente:
+
+Qual LLM principal
+Qual modelo classificador
+Como será a memória
+Como decidir quais memórias salvar
+Como será o banco
+Schema do PostgreSQL
+Como serão os embeddings
+Qual modelo de embedding
+Como será o pipeline do RAG
+Quais fontes externas serão usadas
+Como a pesquisa externa será implementada
+Autenticação
+Frontend
+Docker
+Deploy
+CI/CD
+Testes completos
+Observabilidade
+Segurança
+
+Não precisamos decidir tudo agora.
+
+Isso seria justamente cair no erro de tentar construir o projeto inteiro antes de entender as partes.
+
+30. Onde estamos agora
+
+Estamos aqui:
+
+                    EMILIA
+                       │
+                       ▼
+                    API
+                       │
+                       ▼
+              [ESTAMOS AQUI]
+                       │
+                       ▼
+                ORQUESTRADOR
+                       │
+                       ▼
+                CLASSIFICADOR
+                       │
+        ┌──────────────┼──────────────┐
+        ▼              ▼              ▼
+     MEMÓRIA          RAG       PESQUISA EXTERNA
+        │              │              │
+        └──────────────┼──────────────┘
+                       ▼
+                      LLM
+
+E tecnicamente você já fez:
+
+FastAPI
+   ↓
+app criada
+   ↓
+api.py
+   ↓
+FastAPI()
+   ↓
+GET /home
+   ↓
+POST /chat
+   ↓
+ApiRequests(BaseModel)
+   ↓
+chat_response(text: ApiRequests)
+Próximo passo
+
+Agora vamos terminar a conexão:
+
+API
+ ↓
+Orquestrador
+
+Depois:
+
+Orquestrador
+ ↓
+Classificador
+
+E só então começaremos a implementar as decisões de rota.
+
+Essa ordem é boa porque você está construindo a arquitetura de dentro para fora, em vez de sair criando código aleatoriamente.
