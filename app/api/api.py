@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+# A API nao decide o que fazer com os dados ela envia sempre para o orquestrador
+
 class ApiRequests(BaseModel):
     mensagem: str
     usuario: str
@@ -14,5 +16,5 @@ def homepage():
 
 
 @app.post("/chat")
-def chat_response(text: ApiRequests):
-    pass
+def chat_response(text : ApiRequests):
+    return text.mensagem
