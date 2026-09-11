@@ -17,4 +17,5 @@ def homepage():
 
 @app.post("/chat")
 def chat_response(text : ApiRequests):
-    return text.mensagem
+    api_response = text
+    return api_response
