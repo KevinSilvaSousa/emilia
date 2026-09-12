@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.orquestrar.orquestração import OrchestrateEmilia
+
 app = FastAPI()
 
 # A API nao decide o que fazer com os dados ela envia sempre para o orquestrador
@@ -17,5 +19,5 @@ def homepage():
 
 @app.post("/chat")
 def chat_response(text : ApiRequests):
-    api_response = text
-    return api_response
+    storage_orchestrator = OrchestrateEmilia(text)
+    return storage_orchestrator
